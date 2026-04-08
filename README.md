@@ -27,7 +27,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 # CUDA 12.1 (for GPU acceleration)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
-
+.
 ## Usage
 
 ### Option 1: Streamlit UI (Recommended for easy use)
