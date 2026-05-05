@@ -2,6 +2,7 @@ import importlib
 
 import streamlit as st
 from PIL import Image
+import torch
 
 
 st.set_page_config(
@@ -125,6 +126,36 @@ st.markdown(
         font-size: 0.85rem;
         margin-top: 0.75rem;
     }
+
+    /* ── Button text always visible ── */
+    div.stButton > button,
+    div.stDownloadButton > button {
+        color: #0f172a !important;
+        background-color: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600;
+    }
+
+    div.stButton > button[kind="primary"],
+    div.stButton > button[data-testid*="primary"] {
+        color: #ffffff !important;
+        background-color: #2563eb !important;
+        border: 1px solid #1d4ed8 !important;
+    }
+
+    div.stButton > button:hover,
+    div.stDownloadButton > button:hover {
+        color: #0f172a !important;
+        background-color: #e2e8f0 !important;
+        border-color: #94a3b8 !important;
+    }
+
+    div.stButton > button[kind="primary"]:hover,
+    div.stButton > button[data-testid*="primary"]:hover {
+        color: #ffffff !important;
+        background-color: #1d4ed8 !important;
+        border-color: #1e40af !important;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -145,12 +176,18 @@ def load_model():
     VisionEncoderDecoderModel = transformers.VisionEncoderDecoderModel
     processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
     model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
-    return processor, model
+    
+    # Set device and move model
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model.to(device)
+    
+    return processor, model, device
 
 
 @st.cache_data
-def predict(img, _processor, _model):
+def predict(img, _processor, _model, _device):
     pixel_values = _processor(images=img, return_tensors="pt").pixel_values
+    pixel_values = pixel_values.to(_device)
     ids = _model.generate(pixel_values)
     return _processor.batch_decode(ids, skip_special_tokens=True)[0]
 
@@ -181,13 +218,13 @@ st.markdown(
 <div class="hero">
   <div class="eyebrow">AI OCR Studio</div>
   <h1>Turn handwritten images into clean, readable text.</h1>
-  <p>Upload a note, receipt, or handwritten snippet and the app will extract the content in a streamlined interface designed for quick review.</p>
+  <p>Upload a no, devicete, receipt, or handwritten snippet and the app will extract the content in a streamlined interface designed for quick review.</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-processor, model = load_model()
+processor, model, device = load_model()
 
 st.markdown('<div class="panel">', unsafe_allow_html=True)
 st.markdown('<div class="section-title">Upload Image</div>', unsafe_allow_html=True)
@@ -212,7 +249,7 @@ if uploaded_file is not None:
     with top_left:
         st.markdown('<div class="panel">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Preview</div>', unsafe_allow_html=True)
-        st.image(image, use_container_width=True)
+        st.image(image, use_column_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with top_right:
@@ -243,8 +280,8 @@ if uploaded_file is not None:
             line1 = image.crop((0, 0, width, max(1, height // 2)))
             line2 = image.crop((0, max(1, height // 2), width, height))
 
-            result1 = predict(line1, processor, model)
-            result2 = predict(line2, processor, model)
+            result1 = predict(line1, processor, model, device)
+            result2 = predict(line2, processor, model, device)
             full_text = f"{result1}\n{result2}".strip()
 
         st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
